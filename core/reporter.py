@@ -56,14 +56,39 @@ class ReportGenerator:
         if details and details != explanation:
             lines.append(f"  Technical Context: {details}")
 
-        lines.extend([
-            sub_divider,
-            "CYBERSECURITY ADVISORY NOTE:",
-            "  * SHA-256 verification proves content matches the trusted baseline.",
-            "  * A MATCHED status proves integrity, not absence of malware.",
-            "  * Cryptographic hashing is a one-way digest, distinct from encryption.",
-            divider,
-        ])
+        advisory_lines = [sub_divider, "CYBERSECURITY ADVISORY NOTE:"]
+        status_upper = status.upper()
+        if status_upper == "MATCHED":
+            advisory_lines.extend([
+                "  * Cryptographic digest matches the trusted baseline exactly.",
+                "  * A MATCHED status proves data integrity, not absolute absence of malware.",
+                "  * Cryptographic hashing is a one-way digest, distinct from encryption.",
+            ])
+        elif status_upper == "MODIFIED":
+            advisory_lines.extend([
+                "  * SECURITY ALERT: Cryptographic digest differs from the trusted baseline.",
+                "  * The file has been altered, corrupted, or replaced since the baseline was established.",
+                "  * Investigate unauthorized file changes immediately.",
+            ])
+        elif status_upper == "MISSING":
+            advisory_lines.extend([
+                "  * FILE ABSENT: The registered baseline file was not found on disk.",
+                "  * Verify if the file was legitimately moved, renamed, or deleted by an unauthorized process.",
+            ])
+        else:
+            # ERROR or NO_BASELINE
+            if "baseline" in explanation.lower() or "baseline" in details.lower():
+                advisory_lines.extend([
+                    "  * NO BASELINE: Verification requires an established trusted baseline.",
+                    "  * Create a trusted baseline first before attempting integrity verification.",
+                ])
+            else:
+                advisory_lines.extend([
+                    "  * VERIFICATION ERROR: Target file could not be accessed or processed.",
+                    "  * Check file existence, read permissions, and filesystem constraints.",
+                ])
+        advisory_lines.append(divider)
+        lines.extend(advisory_lines)
 
         return "\n".join(lines)
 
@@ -77,14 +102,29 @@ class ReportGenerator:
         else:
             info = dict(data)
 
+        status_upper = info.get("status", "").upper()
+        explanation = info.get("explanation", "")
+        details = info.get("details", "")
+        advisory = info.get("advisory")
+
+        if not advisory:
+            if status_upper == "MATCHED":
+                advisory = "SHA-256 verification confirms cryptographic consistency against a stored baseline. It does not assess malware payload."
+            elif status_upper == "MODIFIED":
+                advisory = "Integrity breach: current SHA-256 checksum differs from the stored baseline."
+            elif status_upper == "MISSING":
+                advisory = "Target file is absent from disk at the registered canonical path."
+            elif "baseline" in explanation.lower() or "baseline" in details.lower():
+                advisory = "No trusted baseline established for this file path. Create a baseline first."
+            else:
+                advisory = "Target file could not be accessed or processed due to permission or I/O constraints."
+
         payload = {
             "report_type": "file_integrity_verification",
             "version": "1.0",
             "data": info,
-            "security_disclaimer": (
-                "SHA-256 verification confirms cryptographic consistency against a stored baseline. "
-                "It does not assess malware payload or executable intent."
-            ),
+            "security_advisory": advisory,
+            "security_disclaimer": advisory,
         }
         return json.dumps(payload, indent=indent)
 

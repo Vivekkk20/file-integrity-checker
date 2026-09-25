@@ -81,10 +81,33 @@ def run_checks():
         data = json.loads(res.read().decode("utf-8"))
         assert data.get("success") is True
         result = data.get("result", {})
-        assert result.get("status") in ["MATCHED", "MODIFIED"]
-        print(f"[PASS] POST /api/verify (AGENTS.md) -> HTTP 200 (Verdict: {result['status']})")
+        print(f"[PASS] POST /api/verify (AGENTS.md) -> HTTP 200 (Verdict: {result['status']}, Advisory: {result.get('advisory', '')[:45]}...)")
     except Exception as e:
         print(f"[FAIL] POST /api/verify -> {e}")
+        return False
+
+    # 5b. Check /api/verify on a file with NO baseline (asserts proper advisory isolation)
+    try:
+        payload = json.dumps({"file_path": "pytest.ini"}).encode("utf-8")
+        post_req = urllib.request.Request(
+            f"{base_url}/api/verify",
+            data=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        res = urllib.request.urlopen(post_req)
+        assert res.status == 200
+        data = json.loads(res.read().decode("utf-8"))
+        assert data.get("success") is True
+        result = data.get("result", {})
+        assert result.get("status") == "ERROR"
+        assert "No baseline found" in result.get("explanation", "")
+        advisory = result.get("advisory", "")
+        assert "NO BASELINE ESTABLISHED" in advisory
+        assert "A MATCHED result confirms" not in advisory
+        assert "MATCHED" not in advisory
+        print(f"[PASS] POST /api/verify (un-baselined pytest.ini) -> HTTP 200 (Verdict: ERROR, Advisory: {advisory[:55]}...)")
+    except Exception as e:
+        print(f"[FAIL] POST /api/verify (no baseline) -> {e}")
         return False
 
     # 6. Check /api/history

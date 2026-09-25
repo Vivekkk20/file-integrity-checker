@@ -76,6 +76,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCopyCurrentHash = document.getElementById('btnCopyCurrentHash');
   const btnDownloadReport = document.getElementById('btnDownloadReport');
   const btnGoToAnalyze = document.getElementById('btnGoToAnalyze');
+  const resAdvisoryCard = document.getElementById('resAdvisoryCard');
+  const resAdvisoryIcon = document.getElementById('resAdvisoryIcon');
+  const resAdvisoryTitle = document.getElementById('resAdvisoryTitle');
+  const resAdvisoryText = document.getElementById('resAdvisoryText');
 
   // History & Baselines Elements
   const tabSubHistory = document.getElementById('tabSubHistory');
@@ -538,6 +542,59 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else {
       resCurrentHash.style.color = 'var(--text-main)';
+    }
+
+    // Update Security Advisory strictly aligned with the verdict status
+    if (resAdvisoryText && resAdvisoryTitle && resAdvisoryCard) {
+      // Reset card styling
+      resAdvisoryCard.className = 'result-section advisory-box';
+      resAdvisoryCard.classList.add(`advisory-${status.toLowerCase()}`);
+
+      if (status === 'MATCHED') {
+        resAdvisoryTitle.textContent = 'Integrity Verified:';
+        resAdvisoryText.innerHTML =
+          result.advisory ||
+          'A <code>MATCHED</code> result confirms cryptographic consistency with the established baseline. It verifies that not a single bit has been altered, injected, or truncated since the baseline was recorded. Note: A matching hash confirms data integrity against the baseline; it does not replace anti-malware inspection.';
+        if (resAdvisoryIcon) {
+          resAdvisoryIcon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+        }
+      } else if (status === 'MODIFIED') {
+        resAdvisoryTitle.textContent = 'Security Alert — Tampering Detected:';
+        resAdvisoryText.innerHTML =
+          result.advisory ||
+          'A <code>MODIFIED</code> result indicates that the current cryptographic checksum does not match the trusted baseline. The file content has been altered, corrupted, injected, or replaced since the baseline was recorded. Investigate unauthorized changes immediately.';
+        if (resAdvisoryIcon) {
+          resAdvisoryIcon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+        }
+      } else if (status === 'MISSING') {
+        resAdvisoryTitle.textContent = 'Target File Absent from Disk:';
+        resAdvisoryText.innerHTML =
+          result.advisory ||
+          'A <code>MISSING</code> result indicates that the file was expected at the registered canonical path based on your stored baseline, but no longer exists on disk. Verify whether the file was legitimately moved, renamed, or deleted by an unauthorized process.';
+        if (resAdvisoryIcon) {
+          resAdvisoryIcon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+        }
+      } else {
+        // ERROR or NO_BASELINE
+        const isNoBaseline =
+          (result.explanation && (result.explanation.includes('No baseline found') || result.explanation.toLowerCase().includes('baseline'))) ||
+          (result.details && result.details.toLowerCase().includes('baseline'));
+
+        if (isNoBaseline) {
+          resAdvisoryTitle.textContent = 'No Baseline Established:';
+          resAdvisoryText.innerHTML =
+            result.advisory ||
+            'Cryptographic integrity checking requires an established reference baseline. Go to the <strong>File Analysis</strong> screen and click <strong>Create / Update Baseline</strong> to establish a trusted reference point for this file before verifying.';
+        } else {
+          resAdvisoryTitle.textContent = 'Verification Error:';
+          resAdvisoryText.innerHTML =
+            result.advisory ||
+            'The target file could not be accessed or processed due to filesystem restrictions, permission constraints, or an invalid path. Check file access permissions and ensure the path is correct.';
+        }
+        if (resAdvisoryIcon) {
+          resAdvisoryIcon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+        }
+      }
     }
 
     loadStats();

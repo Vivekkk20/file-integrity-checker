@@ -33,6 +33,7 @@ class VerificationResult:
     verified_at: str
     explanation: str
     details: str
+    advisory: str = ""
     history_id: Optional[int] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -46,6 +47,45 @@ class FileComparator:
 
     def __init__(self, db_manager: Optional[DatabaseManager] = None):
         self.db = db_manager or DatabaseManager()
+
+    @staticmethod
+    def get_security_advisory(status: str, explanation: str = "") -> str:
+        """
+        Generate status-specific security advisory text.
+        Guarantees that MATCHED messaging is only returned for MATCHED states,
+        and appropriate targeted advisories are returned for MODIFIED, MISSING,
+        and ERROR / NO_BASELINE states.
+        """
+        status_upper = (status or "").upper()
+        if status_upper == VerificationStatus.MATCHED.value:
+            return (
+                "A MATCHED result confirms cryptographic consistency with the established baseline. "
+                "It verifies that not a single bit has been altered, injected, or truncated since the baseline was recorded. "
+                "Note: A matching hash confirms data integrity against the baseline; it does not replace anti-malware inspection."
+            )
+        elif status_upper == VerificationStatus.MODIFIED.value:
+            return (
+                "SECURITY ALERT: A MODIFIED result indicates that the current cryptographic checksum does not match "
+                "the trusted baseline. The file content has been altered, corrupted, injected, or replaced since the baseline was "
+                "recorded. Investigate unauthorized changes immediately."
+            )
+        elif status_upper == VerificationStatus.MISSING.value:
+            return (
+                "FILE ABSENT: A MISSING result indicates that the file was expected at the registered canonical path "
+                "based on your stored baseline, but no longer exists on disk. Verify whether the file was legitimately "
+                "moved, renamed, or deleted by an unauthorized process."
+            )
+        elif "No baseline found" in explanation or "baseline" in explanation.lower():
+            return (
+                "NO BASELINE ESTABLISHED: Cryptographic integrity checking requires an established reference baseline. "
+                "Go to the File Analysis screen and click 'Create / Update Baseline' to establish a trusted reference "
+                "for this file before verifying."
+            )
+        else:
+            return (
+                "VERIFICATION ERROR: The target file could not be accessed or processed due to filesystem restrictions, "
+                "permission constraints, or an invalid path. Check file access permissions and ensure the path is correct."
+            )
 
     @staticmethod
     def evaluate_status(
@@ -102,6 +142,7 @@ class FileComparator:
                 verified_at=now,
                 explanation="Invalid file path provided.",
                 details=path_err or "Invalid file path.",
+                advisory=self.get_security_advisory(VerificationStatus.ERROR.value, "Invalid file path provided."),
             )
             if record_in_history:
                 record = self.db.log_verification(
@@ -132,6 +173,7 @@ class FileComparator:
                 verified_at=now,
                 explanation="No baseline found for this file. Create a baseline first before verifying.",
                 details="Baseline record does not exist in local database.",
+                advisory=self.get_security_advisory(VerificationStatus.ERROR.value, "No baseline found for this file. Create a baseline first before verifying."),
             )
             if record_in_history:
                 record = self.db.log_verification(
@@ -218,6 +260,9 @@ class FileComparator:
                     explanation="Processing failure during SHA-256 hash calculation.",
                     details=str(e),
                 )
+
+        # Ensure advisory is populated with status-specific guidance
+        result.advisory = self.get_security_advisory(result.status, result.explanation)
 
         # Log history and update last_verified_at in DB
         if record_in_history:

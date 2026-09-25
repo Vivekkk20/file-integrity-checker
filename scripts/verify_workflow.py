@@ -65,7 +65,9 @@ def main():
         print(f"         Explanation    : {res_matched.explanation[:60]}...")
         assert res_matched.status == VerificationStatus.MATCHED.value, f"Expected MATCHED, got {res_matched.status}"
         assert res_matched.baseline_hash == res_matched.current_hash
+        assert "A MATCHED result confirms" in res_matched.advisory
         print("         >>> CONFIRMED: MATCHED")
+        print(f"         Advisory Check : PASSED (MATCHED advisory active)")
 
         # -------------------------------------------------------------
         # STEP 4: Modify file
@@ -88,7 +90,10 @@ def main():
         print(f"         Explanation    : {res_modified.explanation[:60]}...")
         assert res_modified.status == VerificationStatus.MODIFIED.value, f"Expected MODIFIED, got {res_modified.status}"
         assert res_modified.baseline_hash != res_modified.current_hash
+        assert "SECURITY ALERT" in res_modified.advisory
+        assert "A MATCHED result confirms" not in res_modified.advisory
         print("         >>> CONFIRMED: MODIFIED")
+        print(f"         Advisory Check : PASSED (MODIFIED advisory active, zero MATCHED text)")
 
         # -------------------------------------------------------------
         # STEP 6: Delete test file
@@ -108,24 +113,46 @@ def main():
         print(f"         Explanation    : {res_missing.explanation}")
         assert res_missing.status == VerificationStatus.MISSING.value, f"Expected MISSING, got {res_missing.status}"
         assert res_missing.current_hash is None
+        assert "FILE ABSENT" in res_missing.advisory
+        assert "A MATCHED result confirms" not in res_missing.advisory
         print("         >>> CONFIRMED: MISSING")
+        print(f"         Advisory Check : PASSED (MISSING advisory active, zero MATCHED text)")
 
         # -------------------------------------------------------------
-        # STEP 8: Inspect database audit history
+        # STEP 8: Verify a file with no baseline -> ERROR / NO_BASELINE
+        # -------------------------------------------------------------
+        unbaselined_file = tmp_path / "never_baselined.cfg"
+        unbaselined_file.write_text("unregistered config")
+        res_no_base = comparator.verify_file(str(unbaselined_file.resolve()), record_in_history=True)
+        print(f"\n[STEP 8] Verifying file with NO baseline:")
+        print(f"         Status Verdict : {res_no_base.status}")
+        print(f"         Explanation    : {res_no_base.explanation}")
+        print(f"         Advisory       : {res_no_base.advisory[:70]}...")
+        assert res_no_base.status == VerificationStatus.ERROR.value
+        assert "No baseline found" in res_no_base.explanation
+        assert "NO BASELINE ESTABLISHED" in res_no_base.advisory
+        assert "A MATCHED result confirms" not in res_no_base.advisory
+        assert "MATCHED" not in res_no_base.advisory
+        print("         >>> CONFIRMED: ERROR / NO_BASELINE")
+        print(f"         Advisory Check : PASSED (NO_BASELINE advisory active, zero MATCHED text)")
+
+        # -------------------------------------------------------------
+        # Audit Trail Check
         # -------------------------------------------------------------
         history = db.get_history()
-        print(f"\n[STEP 8] Verified Audit Trail in SQLite:")
+        print(f"\n[AUDIT] Verified SQLite Audit Trail Log:")
         print(f"         Total records logged: {len(history)}")
         for r in history:
             print(f"         - Record #{r['id']}: [{r['status']:<8}] {r['file_name']} at {r['verified_at'][:19]}")
 
-        assert len(history) == 3
-        assert history[0]["status"] == "MISSING"
-        assert history[1]["status"] == "MODIFIED"
-        assert history[2]["status"] == "MATCHED"
+        assert len(history) == 4
+        assert history[0]["status"] == "ERROR"
+        assert history[1]["status"] == "MISSING"
+        assert history[2]["status"] == "MODIFIED"
+        assert history[3]["status"] == "MATCHED"
 
     print("\n===================================================================")
-    print("   END-TO-END VERIFICATION WORKFLOW COMPLETED SUCCESSFULLY!       ")
+    print("   COMPLETE 8-STEP WORKFLOW & ADVISORY ISOLATION VERIFIED!        ")
     print("===================================================================")
 
 if __name__ == "__main__":

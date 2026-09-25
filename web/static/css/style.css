@@ -954,9 +954,44 @@ button {
 
 .advisory-box {
   background: rgba(31, 111, 235, 0.06);
+  border-left: 4px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   display: flex;
   gap: 14px;
   align-items: flex-start;
+  transition: all 0.25s ease;
+}
+
+.advisory-matched {
+  background: rgba(46, 160, 67, 0.08);
+  border-left: 4px solid var(--matched-green);
+}
+.advisory-matched .advisory-icon {
+  color: #3fb950;
+}
+
+.advisory-modified {
+  background: rgba(210, 153, 34, 0.08);
+  border-left: 4px solid var(--modified-amber);
+}
+.advisory-modified .advisory-icon {
+  color: #d29922;
+}
+
+.advisory-missing {
+  background: rgba(163, 113, 247, 0.08);
+  border-left: 4px solid var(--missing-purple);
+}
+.advisory-missing .advisory-icon {
+  color: #a371f7;
+}
+
+.advisory-error {
+  background: rgba(248, 81, 73, 0.08);
+  border-left: 4px solid var(--error-crimson);
+}
+.advisory-error .advisory-icon {
+  color: #f85149;
 }
 
 .advisory-icon {
@@ -973,6 +1008,8 @@ button {
 
 .advisory-text strong {
   color: var(--text-main);
+  display: block;
+  margin-bottom: 2px;
 }
 
 .advisory-text code {

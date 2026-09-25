@@ -40,6 +40,7 @@ def test_master_end_to_end_workflow(tmp_path):
     assert result_matched.baseline_hash == initial_hash
     assert result_matched.current_hash == initial_hash
     assert "matches the trusted baseline" in result_matched.explanation
+    assert "A MATCHED result confirms" in result_matched.advisory
 
     # 5. Step 4: Modify test file
     tampered_content = "server_port=8443\nssl_enabled=false\nallow_root=true\n"
@@ -51,6 +52,8 @@ def test_master_end_to_end_workflow(tmp_path):
     assert result_modified.baseline_hash == initial_hash
     assert result_modified.current_hash != initial_hash
     assert "breach detected" in result_modified.explanation.lower()
+    assert "SECURITY ALERT" in result_modified.advisory
+    assert "A MATCHED result confirms" not in result_modified.advisory
 
     # 7. Step 6: Delete test file
     test_file.unlink()
@@ -61,18 +64,38 @@ def test_master_end_to_end_workflow(tmp_path):
     assert result_missing.status == VerificationStatus.MISSING.value
     assert result_missing.current_hash is None
     assert "missing" in result_missing.explanation.lower()
+    assert "FILE ABSENT" in result_missing.advisory
+    assert "A MATCHED result confirms" not in result_missing.advisory
 
-    # 9. Verify History Log Integrity
+    # 9. Step 8: Verify a file with no baseline -> Expect ERROR / NO_BASELINE
+    unbaselined_file = tmp_path / "unregistered_asset.txt"
+    unbaselined_file.write_text("unregistered file without any baseline")
+    result_no_base = comparator.verify_file(str(unbaselined_file.resolve()), record_in_history=True)
+    assert result_no_base.status == VerificationStatus.ERROR.value
+    assert "No baseline found" in result_no_base.explanation
+    assert "NO BASELINE ESTABLISHED" in result_no_base.advisory
+    assert "A MATCHED result confirms" not in result_no_base.advisory
+    assert "MATCHED" not in result_no_base.advisory
+
+    # 10. Verify History Log Integrity
     history = db.get_history()
-    assert len(history) == 3
-    # Most recent first: MISSING, MODIFIED, MATCHED
-    assert history[0]["status"] == VerificationStatus.MISSING.value
-    assert history[1]["status"] == VerificationStatus.MODIFIED.value
-    assert history[2]["status"] == VerificationStatus.MATCHED.value
+    assert len(history) == 4
+    # Most recent first: ERROR (no baseline), MISSING, MODIFIED, MATCHED
+    assert history[0]["status"] == VerificationStatus.ERROR.value
+    assert history[1]["status"] == VerificationStatus.MISSING.value
+    assert history[2]["status"] == VerificationStatus.MODIFIED.value
+    assert history[3]["status"] == VerificationStatus.MATCHED.value
 
-    # 10. Verify Report Generation for all 3 events
-    report_text = ReportGenerator.to_text_report(result_matched)
-    assert "VERDICT STATUS     : MATCHED" in report_text
+    # 11. Verify Report Generation for all events
+    report_text_matched = ReportGenerator.to_text_report(result_matched)
+    assert "VERDICT STATUS     : MATCHED" in report_text_matched
+    assert "A MATCHED status proves data integrity" in report_text_matched
+
+    report_text_no_base = ReportGenerator.to_text_report(result_no_base)
+    assert "VERDICT STATUS     : ERROR" in report_text_no_base
+    assert "NO BASELINE" in report_text_no_base
+    assert "A MATCHED status proves" not in report_text_no_base
 
     report_json = ReportGenerator.to_json_report(result_modified)
     assert '"status": "MODIFIED"' in report_json
+    assert "Integrity breach" in report_json

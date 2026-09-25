@@ -87,3 +87,42 @@ class TestComparator:
         res_missing = comparator.verify_file(path_str)
         assert res_missing.status == VerificationStatus.MISSING.value
         assert res_missing.current_hash is None
+
+    def test_security_advisory_isolation_per_status(self):
+        """Verify that each status receives its distinct advisory and never shows MATCHED for non-MATCHED."""
+        adv_matched = FileComparator.get_security_advisory("MATCHED")
+        assert "MATCHED" in adv_matched
+        assert "cryptographic consistency" in adv_matched
+        assert "ALERT" not in adv_matched
+
+        adv_modified = FileComparator.get_security_advisory("MODIFIED")
+        assert "SECURITY ALERT" in adv_modified
+        assert "MODIFIED" in adv_modified
+        assert "A MATCHED result confirms" not in adv_modified
+
+        adv_missing = FileComparator.get_security_advisory("MISSING")
+        assert "FILE ABSENT" in adv_missing
+        assert "MISSING" in adv_missing
+        assert "A MATCHED result confirms" not in adv_missing
+
+        adv_no_base = FileComparator.get_security_advisory("ERROR", explanation="No baseline found for this file.")
+        assert "NO BASELINE ESTABLISHED" in adv_no_base
+        assert "A MATCHED result confirms" not in adv_no_base
+        assert "Create / Update Baseline" in adv_no_base
+
+        adv_err_access = FileComparator.get_security_advisory("ERROR", explanation="Permission denied.")
+        assert "VERIFICATION ERROR" in adv_err_access
+        assert "A MATCHED result confirms" not in adv_err_access
+
+    def test_verify_file_without_baseline_returns_no_baseline_advisory(self, db, tmp_path):
+        """Specifically assert that verifying a file with no baseline NEVER displays MATCHED advisory."""
+        comparator = FileComparator(db)
+        f = tmp_path / "orphan_file.txt"
+        f.write_text("orphan content")
+
+        result = comparator.verify_file(str(f.resolve()))
+        assert result.status == VerificationStatus.ERROR.value
+        assert "No baseline found" in result.explanation
+        assert "NO BASELINE ESTABLISHED" in result.advisory
+        assert "A MATCHED result confirms" not in result.advisory
+        assert "MATCHED" not in result.advisory
