@@ -115,3 +115,32 @@ class TestAPI:
         assert 'value="clean-slate"' in html
         assert "Google Stitch" in html
 
+    def test_api_verify_file_without_baseline_returns_correct_advisory(self, client, tmp_path):
+        target = tmp_path / "orphan_test_file.txt"
+        target.write_text("Unbaselined content")
+        res = client.post("/api/verify", json={"file_path": str(target)})
+        assert res.status_code == 200
+        data = res.get_json()
+        assert data["success"] is True
+        result = data["result"]
+        assert result["status"] == "ERROR"
+        assert "No baseline found" in result["explanation"]
+        assert "NO BASELINE ESTABLISHED" in result["advisory"]
+        assert "A MATCHED result confirms" not in result["advisory"]
+        assert "MATCHED" not in result["advisory"]
+
+    def test_api_headers_prevent_caching(self, client):
+        res = client.get("/")
+        assert res.status_code == 200
+        cache_control = res.headers.get("Cache-Control", "")
+        assert "no-store" in cache_control
+        assert "no-cache" in cache_control
+
+    def test_index_html_has_versioned_assets_and_neutral_banner(self, client):
+        res = client.get("/")
+        html = res.data.decode("utf-8")
+        assert 'style.css?v=' in html
+        assert 'app.js?v=' in html
+        assert 'class="result-banner status-matched"' not in html
+
+

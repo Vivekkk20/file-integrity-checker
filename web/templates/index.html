@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/style.css?v=2.5.0">
 </head>
 <body class="dark-theme">
   <!-- Toast Container -->
@@ -352,13 +352,11 @@
       <!-- Active Result Card -->
       <div id="resultCard" class="result-card" style="display: none;">
         <!-- Status Banner -->
-        <div id="resultStatusBanner" class="result-banner status-matched">
-          <div class="banner-icon" id="resultStatusIcon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          </div>
+        <div id="resultStatusBanner" class="result-banner">
+          <div class="banner-icon" id="resultStatusIcon"></div>
           <div class="banner-info">
-            <span class="banner-status-text" id="resultStatusText">MATCHED</span>
-            <p class="banner-explanation" id="resultExplanation">Integrity verified. Current SHA-256 hash matches the trusted baseline exactly.</p>
+            <span class="banner-status-text" id="resultStatusText">-</span>
+            <p class="banner-explanation" id="resultExplanation">-</p>
           </div>
           <div class="banner-actions">
             <button id="btnDownloadReport" class="btn btn-secondary btn-sm">
@@ -711,6 +709,6 @@
     </div>
   </footer>
 
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/app.js?v=2.5.0"></script>
 </body>
 </html>

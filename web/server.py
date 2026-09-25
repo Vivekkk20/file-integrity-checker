@@ -29,9 +29,19 @@ def create_app(db_path: str = "integrity_checker.db") -> Flask:
     app.config["DB_PATH"] = db_path
     app.config["UPLOAD_FOLDER"] = str(Path(app.root_path).parent / "staged_files")
     app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024  # 1 GB max upload limit
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+    app.jinja_env.auto_reload = True
 
     # Ensure upload directory exists
     Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
+
+    @app.after_request
+    def add_no_cache_headers(response):
+        """Disable caching to guarantee the latest scripts, styles, and templates are always served."""
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
 
     def get_db() -> DatabaseManager:
         return DatabaseManager(db_path=app.config["DB_PATH"])

@@ -75,7 +75,7 @@ class FileComparator:
                 "based on your stored baseline, but no longer exists on disk. Verify whether the file was legitimately "
                 "moved, renamed, or deleted by an unauthorized process."
             )
-        elif "No baseline found" in explanation or "baseline" in explanation.lower():
+        elif status_upper in ("NO_BASELINE", "NO-BASELINE") or "baseline" in explanation.lower():
             return (
                 "NO BASELINE ESTABLISHED: Cryptographic integrity checking requires an established reference baseline. "
                 "Go to the File Analysis screen and click 'Create / Update Baseline' to establish a trusted reference "
