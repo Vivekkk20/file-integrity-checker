@@ -101,3 +101,17 @@ class TestAPI:
         res_json = res.get_json()
         assert res_json["success"] is True
         assert len(res_json["sha256"]) == 64
+
+    def test_index_contains_theme_and_stitch_components(self, client):
+        res = client.get("/")
+        assert res.status_code == 200
+        html = res.data.decode("utf-8")
+        assert 'id="themeSelect"' in html
+        assert 'id="btnOpenStitchStudio"' in html
+        assert 'id="stitchModal"' in html
+        assert 'value="stitch-dark"' in html
+        assert 'value="cyber-obsidian"' in html
+        assert 'value="midnight-neon"' in html
+        assert 'value="clean-slate"' in html
+        assert "Google Stitch" in html
+

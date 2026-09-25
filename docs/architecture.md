@@ -113,3 +113,24 @@ Deterministic status logic evaluates integrity:
 - **100% Local**: No external HTTP requests, no third-party telemetry, no cloud synchronization.
 - **No Payload Storage**: The SQLite database only stores file metadata (paths, hashes, sizes, timestamps). The actual file contents are never copied into the database.
 - **Ephemeral Upload Staging**: Files uploaded via the web interface are staged locally inside `staged_files/` for immediate chunked processing.
+
+---
+
+## 5. UI Design System & Google Stitch Integration
+
+The web interface is built around modern cybersecurity design principles with deep inspiration and token compatibility from **Google Stitch** (Google Labs' AI-native design-to-code suite at `stitch.withgoogle.com`).
+
+### Supported Theme Palettes:
+1. **Google Stitch Pro (`stitch-dark`)** *(Default)*:
+   - Modern AI-native aesthetic with luminous cyan accents (`#00d2ff`), cybernetic indigo glows, and frosted glass cards.
+2. **Obsidian Matrix (`cyber-obsidian`)**:
+   - High-contrast cybersecurity terminal palette with pitch-black canvas (`#040608`) and radiant matrix emerald (`#00ff88`).
+3. **Midnight Cyberpunk (`midnight-neon`)**:
+   - Synthwave-inspired deep midnight violet canvas (`#090714`) with hot neon magenta (`#ec4899`) and electric violet accents.
+4. **Slate Titanium (`clean-slate`)**:
+   - Refined enterprise security styling with deep titanium slate (`#0b0f19`) and sky-blue accents (`#38bdf8`).
+
+### Google Stitch Studio & Token Bridge:
+- **Client-Side Token Synchronization**: The UI features an interactive Stitch Studio allowing users to export active design tokens in JSON format or import custom Stitch schemas generated from natural language prompts.
+- **Privacy Assurance**: The Stitch integration runs entirely within the local browser environment via CSS custom property mutation. File hashes, file names, and SQLite records are never transmitted externally.
+

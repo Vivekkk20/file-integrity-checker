@@ -100,6 +100,152 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnDownloadModalReport = document.getElementById('btnDownloadModalReport');
   const toastContainer = document.getElementById('toastContainer');
 
+  // Google Stitch & UI Theme Elements
+  const themeSelect = document.getElementById('themeSelect');
+  const btnOpenStitchStudio = document.getElementById('btnOpenStitchStudio');
+  const stitchModal = document.getElementById('stitchModal');
+  const btnCloseStitchModal = document.getElementById('btnCloseStitchModal');
+  const btnDoneStitchModal = document.getElementById('btnDoneStitchModal');
+  const stitchTokenEditor = document.getElementById('stitchTokenEditor');
+  const stitchTokenFeedback = document.getElementById('stitchTokenFeedback');
+  const btnCopyStitchTokens = document.getElementById('btnCopyStitchTokens');
+  const btnApplyStitchTokens = document.getElementById('btnApplyStitchTokens');
+  const btnResetStitchTokens = document.getElementById('btnResetStitchTokens');
+  const stitchPresetButtons = document.querySelectorAll('.stitch-preset-btn');
+
+  // ---------------------------------------------------------------------------
+  // Google Stitch Design Tokens Schema & Palettes
+  // ---------------------------------------------------------------------------
+  const GOOGLE_STITCH_THEMES = {
+    'stitch-dark': {
+      name: 'Google Stitch Pro',
+      version: '2.4.0',
+      description: 'Google Labs Stitch AI-native theme with electric cyan and indigo glows',
+      tokens: {
+        '--bg-canvas': '#070b14',
+        '--bg-surface': '#0d1527',
+        '--bg-card': 'rgba(15, 23, 42, 0.75)',
+        '--border-focus': '#00d2ff',
+        '--text-main': '#f8fafc',
+        '--text-secondary': '#94a3b8',
+        '--stitch-neon': '#00d2ff',
+        '--stitch-glow': 'rgba(0, 210, 255, 0.28)',
+        '--primary-accent': '#0284c7',
+        '--matched-green': '#10b981',
+        '--modified-amber': '#f59e0b',
+        '--missing-purple': '#8b5cf6',
+        '--error-crimson': '#ef4444'
+      }
+    },
+    'cyber-obsidian': {
+      name: 'Obsidian Matrix',
+      version: '2.4.0',
+      description: 'High-contrast terminal cyber matrix with radiant emerald green',
+      tokens: {
+        '--bg-canvas': '#040608',
+        '--bg-surface': '#0a0f14',
+        '--bg-card': 'rgba(12, 18, 24, 0.82)',
+        '--border-focus': '#00ff88',
+        '--text-main': '#ecfdf5',
+        '--text-secondary': '#9ca3af',
+        '--stitch-neon': '#00ff88',
+        '--stitch-glow': 'rgba(0, 255, 136, 0.3)',
+        '--primary-accent': '#059669',
+        '--matched-green': '#00ff88',
+        '--modified-amber': '#eab308',
+        '--missing-purple': '#c084fc',
+        '--error-crimson': '#f43f5e'
+      }
+    },
+    'midnight-neon': {
+      name: 'Midnight Cyberpunk',
+      version: '2.4.0',
+      description: 'Deep midnight synthwave with hot neon magenta and electric violet',
+      tokens: {
+        '--bg-canvas': '#090714',
+        '--bg-surface': '#120e24',
+        '--bg-card': 'rgba(24, 17, 46, 0.8)',
+        '--border-focus': '#f43f5e',
+        '--text-main': '#fdf4ff',
+        '--text-secondary': '#cbd5e1',
+        '--stitch-neon': '#ec4899',
+        '--stitch-glow': 'rgba(236, 72, 153, 0.32)',
+        '--primary-accent': '#c026d3',
+        '--matched-green': '#10b981',
+        '--modified-amber': '#fbbf24',
+        '--missing-purple': '#c084fc',
+        '--error-crimson': '#fb7185'
+      }
+    },
+    'clean-slate': {
+      name: 'Slate Titanium',
+      version: '2.4.0',
+      description: 'Enterprise Titanium Slate with crisp sky blue accents',
+      tokens: {
+        '--bg-canvas': '#0b0f19',
+        '--bg-surface': '#111827',
+        '--bg-card': 'rgba(17, 24, 39, 0.82)',
+        '--border-focus': '#38bdf8',
+        '--text-main': '#f9fafb',
+        '--text-secondary': '#9ca3af',
+        '--stitch-neon': '#38bdf8',
+        '--stitch-glow': 'rgba(56, 189, 248, 0.25)',
+        '--primary-accent': '#2563eb',
+        '--matched-green': '#22c55e',
+        '--modified-amber': '#f59e0b',
+        '--missing-purple': '#a855f7',
+        '--error-crimson': '#ef4444'
+      }
+    }
+  };
+
+  function applyTheme(themeKey, notify = true) {
+    if (!GOOGLE_STITCH_THEMES[themeKey]) {
+      themeKey = 'stitch-dark';
+    }
+    document.documentElement.setAttribute('data-theme', themeKey);
+    if (themeSelect) themeSelect.value = themeKey;
+    localStorage.setItem('fic_theme', themeKey);
+
+    // Clear custom token overrides when switching presets
+    if (GOOGLE_STITCH_THEMES[themeKey]) {
+      Object.keys(GOOGLE_STITCH_THEMES['stitch-dark'].tokens).forEach((k) => {
+        document.documentElement.style.removeProperty(k);
+      });
+    }
+
+    if (stitchTokenEditor) {
+      stitchTokenEditor.value = JSON.stringify(GOOGLE_STITCH_THEMES[themeKey], null, 2);
+    }
+
+    if (notify) {
+      const themeName = GOOGLE_STITCH_THEMES[themeKey].name;
+      showToast(`Theme switched to ${themeName}`, 'info');
+    }
+  }
+
+  function initTheme() {
+    const savedTheme = localStorage.getItem('fic_theme') || 'stitch-dark';
+    applyTheme(savedTheme, false);
+
+    const customTokens = localStorage.getItem('fic_custom_stitch_tokens');
+    if (customTokens) {
+      try {
+        const parsed = JSON.parse(customTokens);
+        if (parsed && parsed.tokens) {
+          Object.entries(parsed.tokens).forEach(([prop, val]) => {
+            document.documentElement.style.setProperty(prop, val);
+          });
+          if (stitchTokenEditor) {
+            stitchTokenEditor.value = JSON.stringify(parsed, null, 2);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed parsing saved custom tokens:', e);
+      }
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Helper: Toast Notifications
   // ---------------------------------------------------------------------------
@@ -837,6 +983,136 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ---------------------------------------------------------------------------
+  // Google Stitch & Theme Event Handlers
+  // ---------------------------------------------------------------------------
+  if (themeSelect) {
+    themeSelect.addEventListener('change', (e) => {
+      applyTheme(e.target.value, true);
+    });
+  }
+
+  if (btnOpenStitchStudio && stitchModal) {
+    btnOpenStitchStudio.addEventListener('click', () => {
+      const activeTheme = localStorage.getItem('fic_theme') || 'stitch-dark';
+      const customTokens = localStorage.getItem('fic_custom_stitch_tokens');
+      if (customTokens && stitchTokenEditor) {
+        stitchTokenEditor.value = customTokens;
+      } else if (stitchTokenEditor && GOOGLE_STITCH_THEMES[activeTheme]) {
+        stitchTokenEditor.value = JSON.stringify(GOOGLE_STITCH_THEMES[activeTheme], null, 2);
+      }
+      if (stitchTokenFeedback) {
+        stitchTokenFeedback.textContent = '';
+        stitchTokenFeedback.className = 'stitch-feedback';
+      }
+      stitchModal.style.display = 'flex';
+    });
+  }
+
+  function closeStitchModal() {
+    if (stitchModal) stitchModal.style.display = 'none';
+  }
+
+  if (btnCloseStitchModal) btnCloseStitchModal.addEventListener('click', closeStitchModal);
+  if (btnDoneStitchModal) btnDoneStitchModal.addEventListener('click', closeStitchModal);
+
+  if (stitchModal) {
+    stitchModal.addEventListener('click', (e) => {
+      if (e.target === stitchModal) closeStitchModal();
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (reportModal && reportModal.style.display === 'flex') reportModal.style.display = 'none';
+      if (stitchModal && stitchModal.style.display === 'flex') closeStitchModal();
+    }
+  });
+
+  stitchPresetButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const preset = btn.dataset.preset;
+      if (preset && GOOGLE_STITCH_THEMES[preset]) {
+        applyTheme(preset, true);
+        if (stitchTokenEditor) {
+          stitchTokenEditor.value = JSON.stringify(GOOGLE_STITCH_THEMES[preset], null, 2);
+        }
+        if (stitchTokenFeedback) {
+          stitchTokenFeedback.textContent = `Applied preset: ${GOOGLE_STITCH_THEMES[preset].name}`;
+          stitchTokenFeedback.className = 'stitch-feedback text-green';
+        }
+      }
+    });
+  });
+
+  if (btnCopyStitchTokens && stitchTokenEditor) {
+    btnCopyStitchTokens.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(stitchTokenEditor.value);
+        showToast('Stitch design tokens copied to clipboard.', 'success');
+      } catch (err) {
+        stitchTokenEditor.select();
+        document.execCommand('copy');
+        showToast('Stitch design tokens copied to clipboard.', 'success');
+      }
+    });
+  }
+
+  if (btnApplyStitchTokens && stitchTokenEditor) {
+    btnApplyStitchTokens.addEventListener('click', () => {
+      try {
+        const raw = stitchTokenEditor.value.trim();
+        const parsed = JSON.parse(raw);
+        const tokens = parsed.tokens || parsed;
+
+        if (!tokens || typeof tokens !== 'object') {
+          throw new Error('Tokens must be an object with CSS variables (e.g. "--bg-canvas": "#...")');
+        }
+
+        let appliedCount = 0;
+        Object.entries(tokens).forEach(([key, val]) => {
+          if (typeof key === 'string' && key.startsWith('--') && typeof val === 'string') {
+            document.documentElement.style.setProperty(key, val);
+            appliedCount++;
+          }
+        });
+
+        if (appliedCount === 0) {
+          throw new Error('No valid CSS variables (starting with --) found in tokens payload.');
+        }
+
+        localStorage.setItem('fic_custom_stitch_tokens', JSON.stringify({
+          name: parsed.name || 'Custom Stitch Theme',
+          version: '2.4.0-custom',
+          tokens: tokens
+        }, null, 2));
+
+        if (stitchTokenFeedback) {
+          stitchTokenFeedback.textContent = `Successfully synchronized ${appliedCount} custom Stitch tokens!`;
+          stitchTokenFeedback.className = 'stitch-feedback text-green';
+        }
+        showToast(`Applied ${appliedCount} custom Google Stitch tokens.`, 'success');
+      } catch (err) {
+        if (stitchTokenFeedback) {
+          stitchTokenFeedback.textContent = `Token Sync Error: ${err.message}`;
+          stitchTokenFeedback.className = 'stitch-feedback text-red';
+        }
+        showToast(`Invalid token JSON: ${err.message}`, 'error');
+      }
+    });
+  }
+
+  if (btnResetStitchTokens) {
+    btnResetStitchTokens.addEventListener('click', () => {
+      localStorage.removeItem('fic_custom_stitch_tokens');
+      applyTheme('stitch-dark', true);
+      if (stitchTokenFeedback) {
+        stitchTokenFeedback.textContent = 'Reset to Google Stitch Pro defaults.';
+        stitchTokenFeedback.className = 'stitch-feedback text-blue';
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Utility Functions
   // ---------------------------------------------------------------------------
   function getBadgeClass(status) {
@@ -882,5 +1158,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Initial Load
+  initTheme();
   loadStats();
 });

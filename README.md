@@ -133,7 +133,18 @@ http://127.0.0.1:5000/
 2. **File Analysis**: Enter a local path or drop a file to inspect file size, disk timestamps, and live SHA-256 digest. Actions: "Create / Update Baseline" and "Verify File Integrity".
 3. **Verification Result**: Color-coded verdict card (`MATCHED`, `MODIFIED`, `MISSING`, `ERROR`) with side-by-side hash comparison and download report option.
 4. **History & Baselines**: Search and filter historical verification checks or inspect and delete active baselines.
-5. **About**: Educational reference explaining file integrity, SHA-256 mechanics, hashing vs. encryption, and scope limits.
+5. **About**: Educational reference explaining file integrity, SHA-256 mechanics, hashing vs. encryption, Google Stitch token architecture, and scope limits.
+
+#### Theme Customization & Google Stitch Integration:
+- **Theme Switcher**: Select between 4 cybersecurity themes in the header:
+  - **Google Stitch Pro** (AI-native design system with cyan & indigo glows)
+  - **Obsidian Matrix** (Terminal emerald green and pitch-black canvas)
+  - **Midnight Cyberpunk** (Synthwave neon magenta and electric violet)
+  - **Slate Titanium** (Clean enterprise navy and sky blue)
+- **Google Stitch Studio & Token Bridge**: Click the **Stitch Studio** button in the header to:
+  - Export active design tokens in JSON schema for use in Google Stitch (`stitch.withgoogle.com`).
+  - Import custom AI-generated JSON tokens to dynamically restyle the application in real-time.
+  - 100% private: All token synchronization happens purely client-side; local files and hashes are never transmitted.
 
 ---
 
