@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const anaBaselineStatusBadge = document.getElementById('anaBaselineStatusBadge');
   const btnCreateBaseline = document.getElementById('btnCreateBaseline');
   const btnVerifyAnalyzedFile = document.getElementById('btnVerifyAnalyzedFile');
+  const btnDownloadAnalyzedFile = document.getElementById('btnDownloadAnalyzedFile');
   const anaFilePath = document.getElementById('anaFilePath');
   const anaFileSize = document.getElementById('anaFileSize');
   const anaLastModified = document.getElementById('anaLastModified');
@@ -646,6 +647,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ---------------------------------------------------------------------------
+  // Action: Download Analyzed File
+  // ---------------------------------------------------------------------------
+  if (btnDownloadAnalyzedFile) {
+    btnDownloadAnalyzedFile.addEventListener('click', () => {
+      if (!state.currentAnalysis || !state.currentAnalysis.metadata || !state.currentAnalysis.metadata.file_path) {
+        showToast('Please analyze or select a file first.', 'error');
+        return;
+      }
+      const filePath = state.currentAnalysis.metadata.file_path;
+      showToast(`Initiating download for "${state.currentAnalysis.metadata.file_name}"...`, 'info', 1500);
+      window.location.href = `/api/download?file_path=${encodeURIComponent(filePath)}`;
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Screen 3: Verification Result Rendering
   // ---------------------------------------------------------------------------
   function displayVerificationResult(result) {
@@ -788,7 +804,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!state.lastVerificationResult) return;
       const historyId = state.lastVerificationResult.history_id;
       if (historyId) {
-        openReportModal(historyId);
+        showToast('Downloading verification audit report...', 'info', 1500);
+        window.location.href = `/api/report/${historyId}?download=true`;
       } else {
         showToast('Report unavailable: no history record ID.', 'error');
       }

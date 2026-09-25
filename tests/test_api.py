@@ -142,5 +142,78 @@ class TestAPI:
         assert 'style.css?v=' in html
         assert 'app.js?v=' in html
         assert 'class="result-banner status-matched"' not in html
+        assert 'id="btnDownloadAnalyzedFile"' in html
+
+    def test_api_download_staged_file(self, client):
+        file_content = b"Staged audit file content for download test"
+        data = {
+            "file": (io.BytesIO(file_content), "staged_download_test.bin"),
+        }
+        res_upload = client.post("/api/upload", data=data, content_type="multipart/form-data")
+        assert res_upload.status_code == 200
+        meta = res_upload.get_json()["metadata"]
+        staged_path = meta["file_path"]
+
+        # Download staged file
+        res_down = client.get(f"/api/download?file_path={staged_path}")
+        assert res_down.status_code == 200
+        assert "attachment" in res_down.headers.get("Content-Disposition", "")
+        assert "staged_download_test.bin" in res_down.headers.get("Content-Disposition", "")
+        assert res_down.data == file_content
+
+    def test_api_download_baselined_file(self, client, tmp_path):
+        target = tmp_path / "baselined_download.txt"
+        target_content = "Confidential baseline file payload 12345"
+        target.write_text(target_content)
+        path_str = str(target)
+
+        # Baseline the file
+        res_b = client.post("/api/baseline", json={"file_path": path_str})
+        assert res_b.status_code == 200
+
+        # Download the baselined file
+        res_down = client.get(f"/api/download?file_path={path_str}")
+        assert res_down.status_code == 200
+        assert "attachment" in res_down.headers.get("Content-Disposition", "")
+        assert "baselined_download.txt" in res_down.headers.get("Content-Disposition", "")
+        assert res_down.data.decode("utf-8") == target_content
+
+    def test_api_download_arbitrary_unbaselined_file_blocked(self, client, tmp_path):
+        # Create an unbaselined file outside workspace
+        foreign_file = tmp_path / "unauthorized_secret.key"
+        foreign_file.write_text("Secret key data")
+        
+        # In a real environment, any file not in baselines or upload folder or workspace is forbidden
+        # If tmp_path is outside project workspace and not in baselines, it should be 403
+        res = client.get(f"/api/download?file_path={foreign_file}")
+        # Not baselined and not in upload_folder
+        assert res.status_code == 403
+        data = res.get_json()
+        assert data["success"] is False
+        assert "Access denied" in data["error"]
+
+    def test_api_download_missing_file_returns_404(self, client):
+        res = client.get("/api/download?file_path=nonexistent_file_path_1234.txt")
+        assert res.status_code in (403, 404)
+
+    def test_api_download_empty_path_returns_400(self, client):
+        res = client.get("/api/download?file_path=")
+        assert res.status_code == 400
+
+    def test_api_report_download_attachment(self, client, tmp_path):
+        target = tmp_path / "report_test.txt"
+        target.write_text("Sample file for report download")
+        path_str = str(target)
+
+        client.post("/api/baseline", json={"file_path": path_str})
+        res_v = client.post("/api/verify", json={"file_path": path_str})
+        history_id = res_v.get_json()["result"]["history_id"]
+
+        res_rep = client.get(f"/api/report/{history_id}?download=true")
+        assert res_rep.status_code == 200
+        assert "attachment" in res_rep.headers.get("Content-Disposition", "")
+        assert f"integrity_audit_report_{history_id}.txt" in res_rep.headers.get("Content-Disposition", "")
+        assert b"FILE INTEGRITY VERIFICATION REPORT" in res_rep.data
+
 
 

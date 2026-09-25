@@ -8,7 +8,7 @@ import json
 import os
 from pathlib import Path
 from typing import Optional
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, send_file
 from werkzeug.utils import secure_filename
 
 from core.hasher import calculate_sha256
@@ -226,10 +226,71 @@ def create_app(db_path: str = "integrity_checker.db") -> Flask:
         history = db.get_history(limit=limit, offset=offset, status_filter=status_filter)
         return jsonify({"success": True, "history": history})
 
+    @app.route("/api/download", methods=["GET"])
+    def api_download():
+        """
+        Download a file securely with Content-Disposition attachment.
+        Security Controls:
+        - Validates canonical path, preventing directory traversal and null-byte injection.
+        - Strict scope enforcement: Serves only staged files in UPLOAD_FOLDER, registered baselines,
+          or non-sensitive application workspace files. Arbitrary system files are rejected (HTTP 403).
+        - Verifies regular file existence (HTTP 404).
+        """
+        file_path = request.args.get("file_path", "").strip()
+        if not file_path:
+            return jsonify({"success": False, "error": "Missing file_path query parameter."}), 400
+
+        is_valid, path_err, resolved_path = validate_file_path(file_path)
+        if not is_valid or resolved_path is None:
+            return jsonify({"success": False, "error": path_err or "Invalid file path."}), 400
+
+        # Scope validation: Do not expose arbitrary filesystem files
+        upload_dir = Path(app.config["UPLOAD_FOLDER"]).resolve()
+        project_dir = Path(__file__).resolve().parent.parent
+        db = get_db()
+        canonical_str = str(resolved_path)
+
+        is_staged = False
+        try:
+            is_staged = resolved_path.resolve().is_relative_to(upload_dir)
+        except (ValueError, AttributeError):
+            pass
+
+        is_workspace = False
+        try:
+            is_workspace = resolved_path.resolve().is_relative_to(project_dir)
+            # Exclude database files and hidden repository hygiene files from generic download
+            if resolved_path.suffix in (".db", ".sqlite", ".sqlite3") or resolved_path.name.startswith("."):
+                is_workspace = False
+        except (ValueError, AttributeError):
+            pass
+
+        is_baselined = db.get_baseline_by_path(canonical_str) is not None
+
+        if not (is_staged or is_workspace or is_baselined):
+            return jsonify({
+                "success": False,
+                "error": "Access denied. Only registered baseline files, workspace files, and staged uploads can be downloaded."
+            }), 403
+
+        if not resolved_path.exists():
+            return jsonify({"success": False, "error": f"File not found on disk: {resolved_path.name}"}), 404
+
+        if resolved_path.is_dir():
+            return jsonify({"success": False, "error": "Cannot download a directory."}), 400
+
+        return send_file(
+            str(resolved_path),
+            as_attachment=True,
+            download_name=resolved_path.name,
+            mimetype="application/octet-stream",
+        )
+
     @app.route("/api/report/<int:history_id>", methods=["GET"])
     def api_report(history_id: int):
         """Generate a verification audit report in text or JSON format."""
         format_type = request.args.get("format", "text").lower()
+        as_download = request.args.get("download", "false").lower() == "true"
         db = get_db()
         record = db.get_history_record_by_id(history_id)
 
@@ -237,13 +298,23 @@ def create_app(db_path: str = "integrity_checker.db") -> Flask:
             return jsonify({"success": False, "error": "Verification record not found."}), 404
 
         if format_type == "json":
+            json_report = ReportGenerator.to_json_report(record)
+            if as_download:
+                return Response(
+                    json_report,
+                    mimetype="application/json",
+                    headers={"Content-Disposition": f'attachment; filename="integrity_audit_report_{history_id}.json"'},
+                )
             return jsonify({
                 "success": True,
-                "report": json.loads(ReportGenerator.to_json_report(record)),
+                "report": json.loads(json_report),
             })
         else:
             text_report = ReportGenerator.to_text_report(record)
-            return Response(text_report, mimetype="text/plain")
+            headers = {}
+            if as_download:
+                headers["Content-Disposition"] = f'attachment; filename="integrity_audit_report_{history_id}.txt"'
+            return Response(text_report, mimetype="text/plain", headers=headers)
 
     return app
 
