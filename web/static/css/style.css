@@ -253,6 +253,7 @@ button {
 
 .app-header {
   background: var(--bg-surface);
+  -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border-bottom: 1px solid var(--border-subtle);
   position: sticky;
@@ -558,6 +559,7 @@ button {
 
 .metric-card {
   background: var(--bg-card);
+  -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -622,6 +624,7 @@ button {
 
 .panel-card {
   background: var(--bg-card);
+  -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -809,9 +812,24 @@ button {
 }
 
 .file-drop-area:hover {
-  border-color: #58a6ff;
-  color: #58a6ff;
-  background: rgba(88, 166, 255, 0.04);
+  border-color: var(--border-focus, #58a6ff);
+  color: var(--border-focus, #58a6ff);
+  background: rgba(0, 210, 255, 0.05);
+}
+
+.file-drop-area.drag-active,
+.file-dropzone.drag-active {
+  border-color: var(--stitch-neon, #00d2ff) !important;
+  background: rgba(0, 210, 255, 0.12) !important;
+  box-shadow: 0 0 20px rgba(0, 210, 255, 0.35) !important;
+  color: var(--stitch-neon, #00d2ff) !important;
+  transform: scale(1.01);
+}
+
+.file-drop-area.has-file,
+.file-dropzone.has-file {
+  border-color: var(--matched-green, #10b981);
+  background: rgba(16, 185, 129, 0.08);
 }
 
 .file-dropzone {
@@ -824,15 +842,19 @@ button {
   background: rgba(15, 21, 30, 0.4);
 }
 
-.file-dropzone:hover,
-.file-dropzone.drag-active {
-  border-color: #58a6ff;
-  background: rgba(88, 166, 255, 0.05);
+.file-dropzone:hover {
+  border-color: var(--border-focus, #58a6ff);
+  background: rgba(0, 210, 255, 0.05);
 }
 
 .dropzone-icon {
-  color: #58a6ff;
+  color: var(--stitch-neon, #00d2ff);
   margin-bottom: 0.75rem;
+  transition: transform 0.2s ease;
+}
+
+.file-dropzone.drag-active .dropzone-icon {
+  transform: scale(1.15) translateY(-3px);
 }
 
 .dropzone-text {
@@ -1021,6 +1043,7 @@ button {
 
 .result-card {
   background: var(--bg-card);
+  -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
@@ -1372,6 +1395,20 @@ button {
   border: 1px solid var(--border-subtle);
 }
 
+.badge-ext {
+  background: rgba(0, 210, 255, 0.12);
+  color: var(--stitch-neon, #00d2ff);
+  border: 1px solid rgba(0, 210, 255, 0.4);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  display: inline-block;
+}
+
 /* Recent list */
 .recent-list {
   display: flex;
@@ -1523,6 +1560,7 @@ button {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.75);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -1873,3 +1911,94 @@ button {
   color: var(--stitch-neon) !important;
   border-color: var(--border-focus) !important;
 }
+
+/* ==========================================================================
+   Global Window Drag & Drop Overlay
+   ========================================================================== */
+
+.global-drag-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(7, 11, 20, 0.88);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s;
+}
+
+.global-drag-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.global-drag-card {
+  border: 2px dashed var(--stitch-neon, #00d2ff);
+  border-radius: 16px;
+  padding: 3rem 4rem;
+  background: rgba(13, 21, 39, 0.95);
+  box-shadow: 0 0 45px rgba(0, 210, 255, 0.35), inset 0 0 25px rgba(0, 210, 255, 0.08);
+  text-align: center;
+  max-width: 540px;
+  animation: pulseDropCard 1.8s infinite ease-in-out;
+}
+
+@keyframes pulseDropCard {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 35px rgba(0, 210, 255, 0.3);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 55px rgba(0, 210, 255, 0.5);
+  }
+}
+
+.global-drag-icon {
+  color: var(--stitch-neon, #00d2ff);
+  margin-bottom: 1.25rem;
+}
+
+.global-drag-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.global-drag-sub {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   Utility Classes & Component Specifics
+   ========================================================================== */
+
+.hidden {
+  display: none;
+}
+
+.file-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#anaFileName {
+  margin-bottom: 0;
+}
+
+#anaBaselineStatusBadge {
+  margin-top: 4px;
+  display: inline-block;
+}
+

@@ -30,6 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const quickFilePathInput = document.getElementById('quickFilePathInput');
   const btnQuickVerify = document.getElementById('btnQuickVerify');
   const quickFileInput = document.getElementById('quickFileInput');
+  const quickFileDropArea = document.getElementById('quickFileDropArea');
+  const quickDropText = document.getElementById('quickDropText');
+  const globalDragOverlay = document.getElementById('globalDragOverlay');
   const btnRefreshStats = document.getElementById('btnRefreshStats');
   const btnHeroAnalyze = document.getElementById('btnHeroAnalyze');
   const btnHeroHistory = document.getElementById('btnHeroHistory');
@@ -42,13 +45,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const analyzeFilePathInput = document.getElementById('analyzeFilePathInput');
   const btnRunAnalysis = document.getElementById('btnRunAnalysis');
   const fileDropzone = document.getElementById('fileDropzone');
+  const dropzoneText = document.getElementById('dropzoneText');
+  const dropzoneHint = document.getElementById('dropzoneHint');
   const analyzeFileInput = document.getElementById('analyzeFileInput');
   const analysisResultCard = document.getElementById('analysisResultCard');
   const anaFileName = document.getElementById('anaFileName');
+  const anaFileExtBadge = document.getElementById('anaFileExtBadge');
   const anaBaselineStatusBadge = document.getElementById('anaBaselineStatusBadge');
   const btnCreateBaseline = document.getElementById('btnCreateBaseline');
   const btnVerifyAnalyzedFile = document.getElementById('btnVerifyAnalyzedFile');
   const btnDownloadAnalyzedFile = document.getElementById('btnDownloadAnalyzedFile');
+  const anaMetaFileExt = document.getElementById('anaMetaFileExt');
   const anaFilePath = document.getElementById('anaFilePath');
   const anaFileSize = document.getElementById('anaFileSize');
   const anaLastModified = document.getElementById('anaLastModified');
@@ -408,10 +415,199 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Helper: Format Bytes to Human-Readable Size
+  // ---------------------------------------------------------------------------
+  function formatBytes(bytes) {
+    if (bytes === 0 || !bytes || bytes < 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helper: Safely Extract and Validate Dropped Files
+  // Rejects directories, non-file items, or empty drops.
+  // ---------------------------------------------------------------------------
+  function extractDroppedFile(e) {
+    const dt = e.dataTransfer;
+    if (!dt) {
+      return { file: null, error: 'No data transfer object provided.' };
+    }
+
+    // Inspect items for directories if webkitGetAsEntry is supported
+    if (dt.items && dt.items.length > 0) {
+      for (let i = 0; i < dt.items.length; i++) {
+        const item = dt.items[i];
+        if (item.kind !== 'file') {
+          return { file: null, error: 'Dropped item is not a file. Only regular files can be verified.' };
+        }
+        if (typeof item.webkitGetAsEntry === 'function') {
+          const entry = item.webkitGetAsEntry();
+          if (entry && entry.isDirectory) {
+            return { file: null, error: `"${entry.name}" is a directory. Directories cannot be integrity checked directly. Please select a regular file.` };
+          }
+        }
+      }
+    }
+
+    if (!dt.files || dt.files.length === 0) {
+      return { file: null, error: 'No file detected in the dropped payload.' };
+    }
+
+    const file = dt.files[0];
+    if (!file || !(file instanceof File) || typeof file.size !== 'number') {
+      return { file: null, error: 'The dropped item is not a regular file.' };
+    }
+
+    return { file, error: null };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helper: Update Dropzone UI with Selected File Details
+  // ---------------------------------------------------------------------------
+  function updateDropzoneUI(file, isQuick = false) {
+    const ext = file.name.includes('.') ? '.' + file.name.split('.').pop().toLowerCase() : 'none';
+    const sizeStr = formatBytes(file.size);
+
+    if (isQuick && quickDropText && quickFileDropArea) {
+      quickDropText.innerHTML = `Selected: <strong>${escapeHtml(file.name)}</strong> <span class="badge badge-ext" style="margin-left: 4px;">${ext.toUpperCase()}</span> (${sizeStr})`;
+      quickFileDropArea.classList.add('has-file');
+    } else if (!isQuick && dropzoneText && dropzoneHint && fileDropzone) {
+      dropzoneText.innerHTML = `Selected File: <strong>${escapeHtml(file.name)}</strong> <span class="badge badge-ext" style="margin-left: 6px;">${ext.toUpperCase()}</span>`;
+      dropzoneHint.textContent = `Extension: ${ext} • Size: ${sizeStr} (${file.size.toLocaleString()} bytes) • SHA-256 calculation underway...`;
+      fileDropzone.classList.add('has-file');
+    }
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ---------------------------------------------------------------------------
+  // CRITICAL: Prevent Browser Default Drag & Drop Navigation Globally
+  // Under no circumstance should Chrome/browser navigate to or open dropped
+  // files (PDF, DOCX, etc.). Default actions MUST be prevented across window & document.
+  // ---------------------------------------------------------------------------
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((eventName) => {
+    window.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, false);
+
+    document.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, false);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Global Window Drag & Drop Overlay Controller
+  // ---------------------------------------------------------------------------
+  let globalDragCounter = 0;
+
+  window.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    globalDragCounter++;
+    if (globalDragOverlay && e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+      globalDragOverlay.classList.add('visible');
+    }
+  }, false);
+
+  window.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  }, false);
+
+  window.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    globalDragCounter = Math.max(0, globalDragCounter - 1);
+    if (globalDragCounter === 0 && globalDragOverlay) {
+      globalDragOverlay.classList.remove('visible');
+    }
+  }, false);
+
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    globalDragCounter = 0;
+    if (globalDragOverlay) {
+      globalDragOverlay.classList.remove('visible');
+    }
+
+    // Check if drop occurred on quickFileDropArea or fileDropzone
+    const target = e.target;
+    if (target && (target.closest('#fileDropzone') || target.closest('#quickFileDropArea'))) {
+      return; // Handled by the specific dropzone listener below
+    }
+
+    // Global window drop fallback:
+    const { file, error } = extractDroppedFile(e);
+    if (error) {
+      showToast(error, 'error', 4500);
+      return;
+    }
+
+    if (file) {
+      switchTab('analyze');
+      if (tabInputUpload) tabInputUpload.click();
+      updateDropzoneUI(file, false);
+      uploadAndAnalyze(file, false);
+    }
+  }, false);
+
+  // ---------------------------------------------------------------------------
+  // Home Screen Dropzone (#quickFileDropArea) & Picker (#quickFileInput)
+  // ---------------------------------------------------------------------------
+  if (quickFileDropArea) {
+    ['dragenter', 'dragover'].forEach((eventName) => {
+      quickFileDropArea.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = 'copy';
+        }
+        quickFileDropArea.classList.add('drag-active');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach((eventName) => {
+      quickFileDropArea.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        quickFileDropArea.classList.remove('drag-active');
+      });
+    });
+
+    quickFileDropArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      quickFileDropArea.classList.remove('drag-active');
+
+      const { file, error } = extractDroppedFile(e);
+      if (error) {
+        showToast(error, 'error', 4500);
+        return;
+      }
+
+      if (file) {
+        updateDropzoneUI(file, true);
+        uploadAndAnalyze(file, true);
+      }
+    });
+  }
+
   if (quickFileInput) {
     quickFileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
+      updateDropzoneUI(file, true);
       uploadAndAnalyze(file, true);
     });
   }
@@ -436,7 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ---------------------------------------------------------------------------
-  // Drag & Drop Handling
+  // File Analysis Dropzone (#fileDropzone) & Picker (#analyzeFileInput)
   // ---------------------------------------------------------------------------
   if (fileDropzone && analyzeFileInput) {
     fileDropzone.addEventListener('click', () => analyzeFileInput.click());
@@ -445,6 +641,9 @@ document.addEventListener('DOMContentLoaded', () => {
       fileDropzone.addEventListener(eventName, (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = 'copy';
+        }
         fileDropzone.classList.add('drag-active');
       });
     });
@@ -458,9 +657,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     fileDropzone.addEventListener('drop', (e) => {
-      const dt = e.dataTransfer;
-      const file = dt.files[0];
+      e.preventDefault();
+      e.stopPropagation();
+      fileDropzone.classList.remove('drag-active');
+
+      const { file, error } = extractDroppedFile(e);
+      if (error) {
+        showToast(error, 'error', 4500);
+        return;
+      }
+
       if (file) {
+        updateDropzoneUI(file, false);
         uploadAndAnalyze(file, false);
       }
     });
@@ -468,16 +676,23 @@ document.addEventListener('DOMContentLoaded', () => {
     analyzeFileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
+        updateDropzoneUI(file, false);
         uploadAndAnalyze(file, false);
       }
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Core Integrity Workflow: Stage File & Stream into SHA-256 Engine
+  // ---------------------------------------------------------------------------
   async function uploadAndAnalyze(file, autoVerify = false) {
+    const ext = file.name.includes('.') ? '.' + file.name.split('.').pop().toLowerCase() : 'none';
+    const sizeStr = formatBytes(file.size);
+
     const formData = new FormData();
     formData.append('file', file);
 
-    showToast(`Uploading and calculating SHA-256 for "${file.name}"...`, 'info', 2000);
+    showToast(`Streaming "${file.name}" (${ext.toUpperCase()}, ${sizeStr}) into SHA-256 engine...`, 'info', 2200);
 
     try {
       const res = await fetch('/api/upload', {
@@ -486,7 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const data = await res.json();
       if (!data.success) {
-        showToast(data.error || 'Upload and analysis failed.', 'error');
+        showToast(data.error || 'Upload and cryptographic analysis failed.', 'error', 4500);
         return;
       }
 
@@ -497,12 +712,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.has_baseline) {
           executeQuickVerification(data.metadata.file_path);
         } else {
-          showToast(`No baseline found for "${file.name}". Switched to File Analysis screen to establish one.`, 'info', 4000);
+          showToast(`No baseline found for "${file.name}". Switched to File Analysis screen to establish one.`, 'info', 4500);
           switchTab('analyze');
         }
+      } else {
+        switchTab('analyze');
+        showToast(`Cryptographic analysis complete for "${file.name}"!`, 'success', 3000);
       }
     } catch (err) {
-      showToast(`Error uploading file: ${err.message}`, 'error');
+      showToast(`Error processing file: ${err.message}`, 'error', 5000);
     }
   }
 
@@ -559,6 +777,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     analysisResultCard.style.display = 'block';
     anaFileName.textContent = metadata.file_name;
+
+    const fileExt = metadata.file_extension || (metadata.file_name.includes('.') ? '.' + metadata.file_name.split('.').pop().toLowerCase() : 'none');
+    if (anaFileExtBadge) {
+      anaFileExtBadge.textContent = fileExt.toUpperCase();
+    }
+    if (anaMetaFileExt) {
+      anaMetaFileExt.textContent = fileExt;
+    }
+
     anaFilePath.textContent = metadata.file_path;
     anaFileSize.textContent = `${metadata.file_size_human} (${metadata.file_size.toLocaleString()} bytes)`;
     anaLastModified.textContent = metadata.last_modified

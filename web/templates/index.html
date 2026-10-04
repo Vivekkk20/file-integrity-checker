@@ -8,9 +8,20 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css?v=2.6.0">
+  <link rel="stylesheet" href="/static/css/style.css?v=2.7.0">
 </head>
 <body class="dark-theme">
+  <!-- Global Window Drag & Drop Overlay -->
+  <div id="globalDragOverlay" class="global-drag-overlay" aria-hidden="true">
+    <div class="global-drag-card">
+      <div class="global-drag-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <h3 class="global-drag-title">Drop File to Check Integrity</h3>
+      <p class="global-drag-sub">Release anywhere to capture and compute SHA-256 (supports .pdf, .docx, .txt, .py, .jpg, .png, .zip)</p>
+    </div>
+  </div>
+
   <!-- Toast Container -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
@@ -181,11 +192,11 @@
             <input type="text" id="quickFilePathInput" class="form-input" placeholder="e.g. C:\Users\user\Documents\contract.pdf" aria-label="Quick file path input">
             <button id="btnQuickVerify" class="btn btn-primary">Verify</button>
           </div>
-          <div class="quick-file-drag">
+          <div class="quick-file-drag" id="homeDropzoneContainer">
             <input type="file" id="quickFileInput" class="file-hidden-input" aria-label="Upload file for quick verify">
-            <label for="quickFileInput" class="file-drop-area">
+            <label for="quickFileInput" class="file-drop-area" id="quickFileDropArea">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <span>Drag & drop file or browse</span>
+              <span id="quickDropText">Drag &amp; drop file (.pdf, .docx, .txt, etc.) or browse</span>
             </label>
           </div>
         </div>
@@ -237,28 +248,31 @@
         </div>
 
         <div id="subtabUploadContent" class="subtab-content">
-          <div class="file-dropzone" id="fileDropzone">
+          <div class="file-dropzone" id="fileDropzone" role="region" aria-label="File drag and drop zone">
             <input type="file" id="analyzeFileInput" class="file-hidden-input" aria-label="Drop target file">
-            <div class="dropzone-content">
-              <div class="dropzone-icon">
+            <div class="dropzone-content" id="dropzoneContent">
+              <div class="dropzone-icon" id="dropzoneIcon">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               </div>
-              <p class="dropzone-text"><strong>Click to browse</strong> or drag & drop a file here</p>
-              <span class="dropzone-hint">Files are staged locally for chunked SHA-256 analysis</span>
+              <p class="dropzone-text" id="dropzoneText"><strong>Click to browse</strong> or drag &amp; drop a file here</p>
+              <span class="dropzone-hint" id="dropzoneHint">Supports .txt, .pdf, .docx, .py, .jpg, .png, .zip and all binary files (staged locally)</span>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Analysis Results Card (Hidden until analyzed) -->
-      <div id="analysisResultCard" class="panel-card analysis-card" style="display: none;">
+      <div id="analysisResultCard" class="panel-card analysis-card hidden">
         <div class="panel-header">
           <div class="file-title-wrapper">
             <div class="file-type-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             </div>
             <div>
-              <h3 id="anaFileName" class="panel-title">filename.ext</h3>
+              <div class="file-title-row">
+                <h3 id="anaFileName" class="panel-title">filename.ext</h3>
+                <span id="anaFileExtBadge" class="badge badge-ext">.EXT</span>
+              </div>
               <span id="anaBaselineStatusBadge" class="badge badge-neutral">No Baseline</span>
             </div>
           </div>
@@ -280,12 +294,16 @@
 
         <div class="metadata-grid">
           <div class="meta-item">
-            <span class="meta-label">Canonical Path</span>
-            <div class="meta-value mono" id="anaFilePath">-</div>
+            <span class="meta-label">File Extension</span>
+            <div class="meta-value mono" id="anaMetaFileExt">-</div>
           </div>
           <div class="meta-item">
             <span class="meta-label">File Size</span>
             <div class="meta-value" id="anaFileSize">-</div>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Canonical Path</span>
+            <div class="meta-value mono" id="anaFilePath">-</div>
           </div>
           <div class="meta-item">
             <span class="meta-label">Last Modified (Disk)</span>
@@ -313,7 +331,7 @@
         </div>
 
         <!-- Baseline Comparison Preview (if exists) -->
-        <div id="anaBaselinePreview" class="baseline-preview-card" style="display: none;">
+        <div id="anaBaselinePreview" class="baseline-preview-card hidden">
           <div class="baseline-preview-header">
             <span class="panel-tag">Existing Trusted Baseline</span>
             <span id="anaBaselineCreated" class="text-muted">Established: -</span>
@@ -354,7 +372,7 @@
       </div>
 
       <!-- Active Result Card -->
-      <div id="resultCard" class="result-card" style="display: none;">
+      <div id="resultCard" class="result-card hidden">
         <!-- Status Banner -->
         <div id="resultStatusBanner" class="result-banner">
           <div class="banner-icon" id="resultStatusIcon"></div>
@@ -488,7 +506,7 @@
         </div>
 
         <!-- Baselines Table View -->
-        <div id="historyBaselinesView" class="table-container" style="display: none;">
+        <div id="historyBaselinesView" class="table-container hidden">
           <table class="data-table" id="tableBaselines">
             <thead>
               <tr>
@@ -611,7 +629,7 @@
   </main>
 
   <!-- Report Modal -->
-  <div id="reportModal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div id="reportModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-dialog">
       <div class="modal-header">
         <h3 id="modalTitle" class="modal-title">Verification Audit Report</h3>
@@ -628,7 +646,7 @@
   </div>
 
   <!-- Google Stitch Studio & Token Bridge Modal -->
-  <div id="stitchModal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="stitchModalTitle">
+  <div id="stitchModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="stitchModalTitle">
     <div class="modal-dialog modal-dialog-lg">
       <div class="modal-header">
         <div class="stitch-header-group">
@@ -706,13 +724,13 @@
 
   <footer class="app-footer">
     <div class="footer-container">
-      <span>File Integrity Checker • Portfolio Edition • SHA-256 Engine</span>
+      <span>File Integrity Checker • SHA-256 Engine</span>
       <span class="footer-status">
         <span class="status-indicator-dot"></span> Local Engine Active
       </span>
     </div>
   </footer>
 
-  <script src="/static/js/app.js?v=2.6.0"></script>
+  <script src="/static/js/app.js?v=2.7.0"></script>
 </body>
 </html>

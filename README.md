@@ -38,7 +38,7 @@ In computer security, **File Integrity Monitoring (FIM)** is essential for detec
 - **Web Server**: Flask 3.1
 - **Frontend**: Semantic HTML5, Vanilla CSS3 (Sleek dark theme, glassmorphism, glowing status badges, responsive layout), Vanilla JavaScript (Fetch API, drag-and-drop, tab views)
 - **Typography**: Google Fonts (Inter for UI, JetBrains Mono for hashes and terminal output)
-- **Testing**: Pytest (36 unit, integration, API, and end-to-end tests)
+- **Testing**: Pytest (54 unit, integration, API, and end-to-end tests)
 
 ---
 
@@ -68,7 +68,7 @@ file_integrity_checker/
 │   └── static/
 │       ├── css/style.css   # Dark cybersecurity design system
 │       └── js/app.js       # Client controller & async handlers
-├── tests/                  # 36 automated unit & integration tests
+├── tests/                  # 54 automated unit & integration tests
 │   ├── test_hasher.py
 │   ├── test_file_handler.py
 │   ├── test_database.py
@@ -234,7 +234,7 @@ pytest
 
 Output:
 ```text
-============================= 36 passed in 1.15s ==============================
+============================= 54 passed in 1.17s ==============================
 ```
 
 Tests verify:

@@ -126,9 +126,11 @@ def create_app(db_path: str = "integrity_checker.db") -> Flask:
         if uploaded_file.filename == "":
             return jsonify({"success": False, "error": "Empty filename."}), 400
 
-        filename = secure_filename(uploaded_file.filename)
+        orig_name = uploaded_file.filename or "uploaded_file.bin"
+        filename = secure_filename(orig_name)
         if not filename:
-            filename = "uploaded_file.bin"
+            orig_ext = Path(orig_name).suffix
+            filename = f"staged_file{orig_ext}" if orig_ext else "uploaded_file.bin"
 
         dest_dir = Path(app.config["UPLOAD_FOLDER"])
         dest_path = dest_dir / filename

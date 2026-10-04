@@ -53,6 +53,7 @@ class TestFileHandler:
         assert meta["is_readable"] is True
         assert meta["file_size"] == 2048
         assert meta["file_name"] == "metadata_test.bin"
+        assert meta["file_extension"] == ".bin"
         assert meta["error"] is None
 
     def test_get_metadata_missing_file(self, tmp_path):
@@ -61,6 +62,7 @@ class TestFileHandler:
 
         assert meta["exists"] is False
         assert meta["is_file"] is False
+        assert meta["file_extension"] == ".txt"
         assert meta["error"] is not None
         assert "does not exist" in meta["error"]
 
@@ -71,4 +73,5 @@ class TestFileHandler:
         meta = get_file_metadata(str(folder))
         assert meta["exists"] is True
         assert meta["is_file"] is False
+        assert meta["file_extension"] == "directory"
         assert "directory" in meta["error"].lower()

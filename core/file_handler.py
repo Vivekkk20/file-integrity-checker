@@ -79,9 +79,11 @@ def get_file_metadata(file_path: str) -> Dict[str, Any]:
     """
     is_valid, err, path = validate_file_path(file_path)
     if not is_valid or path is None:
+        file_ext = Path(file_path).suffix.lower() if file_path and Path(file_path).suffix else "none"
         return {
             "file_name": os.path.basename(file_path) if file_path else "Unknown",
             "file_path": str(file_path) if file_path else "",
+            "file_extension": file_ext,
             "file_size": 0,
             "file_size_human": "0 B",
             "exists": False,
@@ -93,11 +95,13 @@ def get_file_metadata(file_path: str) -> Dict[str, Any]:
 
     canonical_path_str = str(path)
     file_name = path.name
+    file_ext = path.suffix.lower() if path.suffix else "none"
 
     if not path.exists():
         return {
             "file_name": file_name,
             "file_path": canonical_path_str,
+            "file_extension": file_ext,
             "file_size": 0,
             "file_size_human": "0 B",
             "exists": False,
@@ -111,6 +115,7 @@ def get_file_metadata(file_path: str) -> Dict[str, Any]:
         return {
             "file_name": file_name,
             "file_path": canonical_path_str,
+            "file_extension": "directory",
             "file_size": 0,
             "file_size_human": "0 B",
             "exists": True,
@@ -126,6 +131,7 @@ def get_file_metadata(file_path: str) -> Dict[str, Any]:
         return {
             "file_name": file_name,
             "file_path": canonical_path_str,
+            "file_extension": file_ext,
             "file_size": 0,
             "file_size_human": "0 B",
             "exists": True,
@@ -141,6 +147,7 @@ def get_file_metadata(file_path: str) -> Dict[str, Any]:
         return {
             "file_name": file_name,
             "file_path": canonical_path_str,
+            "file_extension": file_ext,
             "file_size": stat_info.st_size,
             "file_size_human": format_bytes_human(stat_info.st_size),
             "exists": True,
@@ -153,6 +160,7 @@ def get_file_metadata(file_path: str) -> Dict[str, Any]:
         return {
             "file_name": file_name,
             "file_path": canonical_path_str,
+            "file_extension": file_ext,
             "file_size": 0,
             "file_size_human": "0 B",
             "exists": True,

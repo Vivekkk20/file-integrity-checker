@@ -1,0 +1,13 @@
+%PDF-1.4
+1 0 obj
+<< /Title (Enterprise Security Policy) /Author (Cybersecurity Ops) >>
+endobj
+2 0 obj
+<< /Length 120 >>
+stream
+CONFIDENTIAL SECURITY DIRECTIVE: All server baselines must be cryptographically hashed via SHA-256.
+endstream
+endobj
+trailer
+<< /Root 1 0 R >>
+%%EOF
